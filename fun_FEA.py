@@ -1092,3 +1092,93 @@ class cls_auto_DNN(object):
     #End of Function 'fun_eval'
     
 #End of class 'cls_auto_DNN
+
+##############################################################################
+
+###############################################################################################################
+# Project     : Automation of Model Training
+#
+# Coding      : CAO Jianneng
+#
+# Date        : Since 2019-12-22
+#
+# Description : Configurations for model training
+#               1) 
+#               2) 
+###############################################################################################################
+
+import sys
+import time
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import GridSearchCV, KFold, train_test_split, PredefinedSplit
+from keras.regularizers import l2
+from sklearn import preprocessing
+from keras.models import Sequential
+from keras.layers import Dense, BatchNormalization, Activation, Dropout
+from keras.wrappers.scikit_learn import KerasClassifier
+# from keras.constraints import maxnorm
+from keras.optimizers import Adam, SGD
+from keras.callbacks import EarlyStopping
+from random import shuffle, seed
+
+
+################################################################################################################
+
+import sys
+sys.path.append("./SourceCode")
+
+#Set folder directories globally
+from Config import *
+Env_Config.fun_init_path(".")
+
+from Model.auto_DNN import *
+
+# load dataset
+dataset = np.loadtxt(fun_path_join(Env_Config.data_path, "pima-indians-diabetes.csv"), delimiter=",")
+# split into input (X) and output (Y) variables
+X = dataset[:,0:8]
+Y = dataset[:,8]
+Y = Y.astype(int)
+encoder = preprocessing.LabelBinarizer()
+encoder.fit(Y)
+binary_Y = encoder.transform(Y)
+mlb = preprocessing.MultiLabelBinarizer()
+encoded_Y = mlb.fit_transform(binary_Y)
+X = pd.DataFrame(X)
+encoded_Y = pd.DataFrame(encoded_Y)
+#Labelling for multi-class multi-label classification
+encoded_Y = pd.concat([encoded_Y, encoded_Y],  axis=1)
+encoded_Y.columns = ["c1", "c2", "c3","c4"]
+
+x_train, x_test, y_train, y_test = train_test_split(X, encoded_Y , train_size = 0.7, random_state = 2019)
+
+#normalize data
+std_scale = preprocessing.StandardScaler().fit(x_train)
+x_train_norm = std_scale.transform(x_train)
+x_test_norm = std_scale.transform(x_test)
+
+#timer - start
+start_time = time.monotonic() 
+
+#object for DNN
+DNN = cls_auto_DNN(x_train = x_train_norm, 
+                    y_train = y_train)
+# #print param
+# DNN.fun_print_param()
+
+#train model
+grid_result = DNN.fun_train_model()
+
+#prediction
+y_pred = DNN.fun_pred(grid_result = grid_result, 
+                        x_test = x_test_norm)
+#evaluation
+print("\n\n+++ Evaluation result ---")
+DNN.fun_eval(y_pred = y_pred, 
+                y_test = y_test)
+
+#timer - end
+end_time = time.monotonic() 
+print("Consumed time(sec): ", end_time - start_time)
+
